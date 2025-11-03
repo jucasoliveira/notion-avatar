@@ -27,10 +27,25 @@ import EmbedModal from '../Modal/Embed';
 import PaletteModal from '../Modal/Palette';
 
 // TODO: Refactor this component
-export default function AvatarEditor() {
+interface AvatarEditorProps {
+  initialConfig?: Partial<AvatarConfig>;
+  showControls?: boolean;
+  onConfigChange?: (config: AvatarConfig) => void;
+  customAssets?: { [key: string]: string }; // Custom SVG code for parts
+}
+
+export default function AvatarEditor({
+  initialConfig,
+  showControls = true,
+  onConfigChange,
+  customAssets = {},
+}: AvatarEditorProps) {
   const router = useRouter();
 
-  const [config, setConfig] = useState({ ...getRandomStyle() });
+  const [config, setConfig] = useState({
+    ...getRandomStyle(),
+    ...initialConfig,
+  });
   const [preview, setPreview] = useState('');
   const [imageType, setImageType] = useState('png' as ImageType);
   const [showDownloadModal, setDownloadModal] = useState(false);
@@ -58,6 +73,7 @@ export default function AvatarEditor() {
       ) as AvatarConfig;
       setConfig({ ...config, ...params });
       setFlip(Boolean(Number(params.flip ?? 0)));
+      // eslint-disable-next-line no-console
       console.log(params);
 
       setBackground({
@@ -65,16 +81,43 @@ export default function AvatarEditor() {
         shape: params.shape ?? 'none',
       });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
 
   const generatePreview = async (flipped: boolean) => {
     const groups = await Promise.all(
       Object.keys(AvatarStyleCount).map(async (type) => {
+        const partValue = config[type as AvatarPart];
+
+        // Skip parts that are null or undefined (optional parts like glasses, beard, etc.)
+        if (
+          partValue === null ||
+          partValue === undefined ||
+          partValue === 'null'
+        ) {
+          return '';
+        }
+
+        // Check if we have a custom asset for this part
+        if (customAssets[type]) {
+          // Use custom SVG
+          const customSvg = customAssets[type];
+          const svgContent = customSvg
+            .replace(/<\?xml[^>]*\?>/g, '')
+            .replace(/<svg[^>]*>/g, '')
+            .replace(/<\/svg>/g, '')
+            .trim();
+
+          return `\n<g id="notion-avatar-${type}" ${
+            type === 'face' ? 'fill="#ffffff"' : ''
+          } ${flipped ? 'transform="scale(-1,1) translate(-1080, 0)"' : ''}>\n
+      ${svgContent}
+    \n</g>\n`;
+        }
+
         /* eslint-disable */
         const svgRaw = (
-          await require(`!!raw-loader!@/public/avatar/preview/${type}/${
-            config[type as AvatarPart]
-          }.svg`)
+          await require(`!!raw-loader!@/public/avatar/preview/${type}/${partValue}.svg`)
         ).default;
         return `\n<g id="notion-avatar-${type}" ${
           type === 'face' ? 'fill="#ffffff"' : ''
@@ -111,7 +154,10 @@ export default function AvatarEditor() {
 
   useEffect(() => {
     generatePreview(flip);
-  }, [config, flip]);
+    if (onConfigChange) {
+      onConfigChange(config);
+    }
+  }, [config, flip, customAssets]);
 
   const switchConfig = (type: AvatarPartExtra) => {
     const newIdx =
@@ -230,151 +276,213 @@ export default function AvatarEditor() {
           }}
         />
         <div className="w-5/6 md:w-2/3">
-          <div className="flex justify-between items-center">
-            <div className="text-lg my-5">{t('choose')}</div>
-            <div className="flex items-center">
-              <button
-                data-tip={t('flip')}
-                className="w-8 h-8 sm:w-12 sm:h-12 tooltip"
-                onClick={() => {
-                  setFlip(!flip);
-                }}
-              >
-                <Image
-                  width={30}
-                  height={30}
-                  src={flip ? '/icon/flip-left.svg' : '/icon/flip-right.svg'}
-                />
-              </button>
-              <button
-                data-tip={t('background')}
-                className="w-8 h-8 sm:w-12 sm:h-12 tooltip ml-2"
-                onClick={onOpenPaletteModal}
-              >
-                <Image width={30} height={30} src="/icon/palette.svg" />
-              </button>
-            </div>
-          </div>
-          <div className="grid gap-y-4 justify-items-center justify-between grid-rows-2 grid-cols-5 lg:flex">
-            {Object.keys(AvatarStyleCount).map((type) => (
-              <div key={type}>
-                <SelectionWrapper
-                  switchConfig={() => {
-                    switchConfig(type as AvatarPart);
-                  }}
-                  tooltip={t(type)}
-                >
-                  <Image
-                    src={`/avatar/part/${type}/${type}-${
-                      config[type as AvatarPart]
-                    }.svg`}
-                    width={30}
-                    height={30}
-                  />
-                </SelectionWrapper>
+          {showControls && (
+            <>
+              <div className="flex justify-between items-center">
+                <div className="text-lg my-5">{t('choose')}</div>
+                <div className="flex items-center">
+                  <button
+                    data-tip={t('flip')}
+                    className="w-8 h-8 sm:w-12 sm:h-12 tooltip"
+                    onClick={() => {
+                      setFlip(!flip);
+                    }}
+                  >
+                    <Image
+                      width={30}
+                      height={30}
+                      src={
+                        flip ? '/icon/flip-left.svg' : '/icon/flip-right.svg'
+                      }
+                    />
+                  </button>
+                  <button
+                    data-tip={t('background')}
+                    className="w-8 h-8 sm:w-12 sm:h-12 tooltip ml-2"
+                    onClick={onOpenPaletteModal}
+                  >
+                    <Image width={30} height={30} src="/icon/palette.svg" />
+                  </button>
+                </div>
               </div>
-            ))}
-            {isFestival() && (
-              <SelectionWrapper
-                switchConfig={() => {
-                  switchConfig(festival);
-                }}
-                tooltip={FestivalTooltipEmoji[festival]}
-                className="relative "
-              >
-                <>
+              <div className="grid gap-y-4 justify-items-center justify-between grid-rows-2 grid-cols-5 lg:flex">
+                {Object.keys(AvatarStyleCount).map((type) => (
+                  <div key={type}>
+                    <SelectionWrapper
+                      switchConfig={() => {
+                        switchConfig(type as AvatarPart);
+                      }}
+                      tooltip={t(type)}
+                    >
+                      <Image
+                        src={`/avatar/part/${type}/${type}-${
+                          config[type as AvatarPart]
+                        }.svg`}
+                        width={30}
+                        height={30}
+                      />
+                    </SelectionWrapper>
+                  </div>
+                ))}
+                {isFestival() && (
+                  <SelectionWrapper
+                    switchConfig={() => {
+                      switchConfig(festival);
+                    }}
+                    tooltip={FestivalTooltipEmoji[festival]}
+                    className="relative "
+                  >
+                    <>
+                      <Image
+                        src={`/avatar/part/festival/${festival}/${festival}-${config[festival]}.svg`}
+                        width={30}
+                        height={30}
+                      />
+                      <span className="top-0 right-0 absolute bg-red-600 text-xs text-white rounded translate-x-1/2 px-1 -translate-y-1/2">
+                        New
+                      </span>
+                    </>
+                  </SelectionWrapper>
+                )}
+              </div>
+              <div className="flex flex-col gap-x-3 md:flex-row mt-8 justify-between w-full select-none">
+                <button
+                  onClick={() => {
+                    setConfig(getRandomStyle());
+                  }}
+                  type="button"
+                  className="mb-3 md:mb-0 focus:ring-2 focus:ring-offset-2 focus:ring-black hover:bg-gray-50 outline-none flex items-center justify-center w-full md:w-60 border-3 border-black text-black font-bold py-2 px-4 rounded-full"
+                >
                   <Image
-                    src={`/avatar/part/festival/${festival}/${festival}-${config[festival]}.svg`}
-                    width={30}
-                    height={30}
+                    src="/icon/dice.svg"
+                    alt={t('random')}
+                    width={28}
+                    height={28}
                   />
-                  <span className="top-0 right-0 absolute bg-red-600 text-xs text-white rounded translate-x-1/2 px-1 -translate-y-1/2">
-                    New
-                  </span>
-                </>
-              </SelectionWrapper>
-            )}
-          </div>
-          <div className="flex flex-col gap-x-3 md:flex-row mt-8 justify-between w-full select-none">
-            <button
-              onClick={() => {
-                setConfig(getRandomStyle());
-              }}
-              type="button"
-              className="mb-3 md:mb-0 focus:ring-2 focus:ring-offset-2 focus:ring-black hover:bg-gray-50 outline-none flex items-center justify-center w-full md:w-60 border-3 border-black text-black font-bold py-2 px-4 rounded-full"
-            >
-              <Image
-                src="/icon/dice.svg"
-                alt={t('random')}
-                width={28}
-                height={28}
-              />
-              <span className="ml-3">{t('random')}</span>
-            </button>
-            <button
-              onClick={onOpenEmbedModal}
-              type="button"
-              className="mb-3 md:mb-0 focus:ring-2 focus:ring-offset-2 focus:ring-black hover:bg-gray-50 outline-none flex items-center justify-center w-full md:w-60 border-3 border-black text-black font-bold py-2 px-4 rounded-full"
-            >
-              <Image
-                src="/icon/code.svg"
-                alt={t('embed')}
-                width={28}
-                height={28}
-              />
-              <span className="ml-3">{t('embed')}</span>
-            </button>
-            <div className="flex">
-              <button
-                type="button"
-                onClick={downloadAvatar}
-                className="focus:ring-2 focus:ring-offset-2 focus:ring-black hover:bg-gray-50 outline-none select-none flex items-center justify-center md:w-52 border-3 border-black text-black font-bold py-2 px-4 rounded-full rounded-r-none flex-grow"
-              >
-                <Image
-                  src="/icon/download.svg"
-                  alt={t('download')}
-                  width={28}
-                  height={28}
-                />
-                <span className="ml-3">{t('download')}</span>
-              </button>
-              <div className="border-3 border-black rounded-full flex items-center rounded-l-none border-l-0 relative">
-                <select
-                  className="appearance-none focus:outline-none select-none bg-transparent h-full w-20 pl-4 pr-7 cursor-pointer"
-                  onChange={(e) => setImageType(e.target.value as ImageType)}
+                  <span className="ml-3">{t('random')}</span>
+                </button>
+                <button
+                  onClick={onOpenEmbedModal}
+                  type="button"
+                  className="mb-3 md:mb-0 focus:ring-2 focus:ring-offset-2 focus:ring-black hover:bg-gray-50 outline-none flex items-center justify-center w-full md:w-60 border-3 border-black text-black font-bold py-2 px-4 rounded-full"
                 >
-                  <option value="png">.PNG</option>
-                  <option value="svg">.SVG</option>
-                </select>
-                <svg
-                  width="10px"
-                  height="6px"
-                  viewBox="0 0 10 6"
-                  version="1.1"
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="absolute right-3"
+                  <Image
+                    src="/icon/code.svg"
+                    alt={t('embed')}
+                    width={28}
+                    height={28}
+                  />
+                  <span className="ml-3">{t('embed')}</span>
+                </button>
+                <div className="flex">
+                  <button
+                    type="button"
+                    onClick={downloadAvatar}
+                    className="focus:ring-2 focus:ring-offset-2 focus:ring-black hover:bg-gray-50 outline-none select-none flex items-center justify-center md:w-52 border-3 border-black text-black font-bold py-2 px-4 rounded-full rounded-r-none flex-grow"
+                  >
+                    <Image
+                      src="/icon/download.svg"
+                      alt={t('download')}
+                      width={28}
+                      height={28}
+                    />
+                    <span className="ml-3">{t('download')}</span>
+                  </button>
+                  <div className="border-3 border-black rounded-full flex items-center rounded-l-none border-l-0 relative">
+                    <select
+                      className="appearance-none focus:outline-none select-none bg-transparent h-full w-20 pl-4 pr-7 cursor-pointer"
+                      onChange={(e) =>
+                        setImageType(e.target.value as ImageType)
+                      }
+                    >
+                      <option value="png">.PNG</option>
+                      <option value="svg">.SVG</option>
+                    </select>
+                    <svg
+                      width="10px"
+                      height="6px"
+                      viewBox="0 0 10 6"
+                      version="1.1"
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="absolute right-3"
+                    >
+                      <g
+                        stroke="none"
+                        strokeWidth="1"
+                        fill="none"
+                        fillRule="evenodd"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <g
+                          id="a"
+                          transform="translate(1.000000, 1.000000)"
+                          stroke="#000000"
+                          strokeWidth="2"
+                        >
+                          <polyline points="8 0 4 4 0 0"></polyline>
+                        </g>
+                      </g>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+          {!showControls && (
+            <div className="flex flex-col gap-3 mt-8 w-full">
+              <div className="flex">
+                <button
+                  type="button"
+                  onClick={downloadAvatar}
+                  className="focus:ring-2 focus:ring-offset-2 focus:ring-black hover:bg-gray-50 outline-none select-none flex items-center justify-center border-3 border-black text-black font-bold py-2 px-4 rounded-full rounded-r-none flex-grow"
                 >
-                  <g
-                    stroke="none"
-                    strokeWidth="1"
-                    fill="none"
-                    fillRule="evenodd"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
+                  <Image
+                    src="/icon/download.svg"
+                    alt={t('download')}
+                    width={28}
+                    height={28}
+                  />
+                  <span className="ml-3">{t('download')}</span>
+                </button>
+                <div className="border-3 border-black rounded-full flex items-center rounded-l-none border-l-0 relative">
+                  <select
+                    className="appearance-none focus:outline-none select-none bg-transparent h-full w-20 pl-4 pr-7 cursor-pointer"
+                    onChange={(e) => setImageType(e.target.value as ImageType)}
+                  >
+                    <option value="png">.PNG</option>
+                    <option value="svg">.SVG</option>
+                  </select>
+                  <svg
+                    width="10px"
+                    height="6px"
+                    viewBox="0 0 10 6"
+                    version="1.1"
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="absolute right-3"
                   >
                     <g
-                      id="a"
-                      transform="translate(1.000000, 1.000000)"
-                      stroke="#000000"
-                      strokeWidth="2"
+                      stroke="none"
+                      strokeWidth="1"
+                      fill="none"
+                      fillRule="evenodd"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
                     >
-                      <polyline points="8 0 4 4 0 0"></polyline>
+                      <g
+                        id="a"
+                        transform="translate(1.000000, 1.000000)"
+                        stroke="#000000"
+                        strokeWidth="2"
+                      >
+                        <polyline points="8 0 4 4 0 0"></polyline>
+                      </g>
                     </g>
-                  </g>
-                </svg>
+                  </svg>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </>

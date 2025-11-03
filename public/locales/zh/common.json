@@ -26,8 +26,8 @@
   "modalHint": "长按图片或者右键保存头像至本地相册",
   "modalCancel": "关闭",
   "modalConfirm": "确认",
-  "siteTitle": "Notion 风格头像制作",
-  "siteDescription": "一个生成 Notion 风格头像的在线工具。",
+  "siteTitle": "Slop AI 头像",
+  "siteDescription": "使用 AI 从自拍照生成精美的定制头像，支持自定义 AI 生成功能。",
   "404Title": "啊哦！页面走丢了。",
   "404Redirect": "返回主页",
   "copy": "复制",
@@ -37,5 +37,35 @@
   "background": "背景色",
   "paletteTitle": "请选择一种背景颜色",
   "chooseShape": "请选择一种背景形状",
-  "customColor": "更多颜色选择"
+  "customColor": "更多颜色选择",
+  "hero": {
+    "title": "创建你的 AI 头像",
+    "subtitle": "上传自拍照，让 AI 为你设计完美的定制头像",
+    "privacy": "你的照片会被立即处理，不会被存储"
+  },
+  "upload": {
+    "clickToUpload": "点击上传",
+    "orDragDrop": "或拖放文件",
+    "fileTypes": "PNG、JPG 或 WEBP（最大 5MB）",
+    "errorType": "请上传有效的图片文件（PNG、JPG 或 WEBP）",
+    "errorSize": "文件大小必须小于 5MB",
+    "errorRead": "无法读取图片文件"
+  },
+  "loading": {
+    "analyzing": "正在分析你的照片..."
+  },
+  "error": {
+    "title": "分析失败",
+    "analysisFailed": "无法分析图片，请尝试其他照片。"
+  },
+  "tryAnother": "尝试其他照片",
+  "results": {
+    "title": "你的 AI 生成头像",
+    "yourPhoto": "你的照片",
+    "generatedAvatar": "生成的头像",
+    "imperfectMatch": "部分特征无法完美匹配",
+    "imperfectMatchDescription": "我们无法找到完美匹配的素材：{{parts}}。你可以手动调整这些特征以更好地匹配你的照片。",
+    "customizeManually": "手动自定义 →",
+    "hideControls": "隐藏控制"
+  }
 }

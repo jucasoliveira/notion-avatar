@@ -26,8 +26,8 @@
   "modalHint": "Long press or click the right mouse button to save the avatar to your album",
   "modalCancel": "Cancel",
   "modalConfirm": "Confirm",
-  "siteTitle": "Notion Avatar Maker",
-  "siteDescription": "An online tool for making notion-style avatars.",
+  "siteTitle": "Slop AI Avatar",
+  "siteDescription": "Generate stunning AI avatars from your selfies with custom AI-generated features.",
   "404Title": "Oops! Page Not Found.",
   "404Redirect": "Back To Home",
   "copy": "Copy",
@@ -37,5 +37,35 @@
   "background": "Background",
   "paletteTitle": "Choose background",
   "chooseShape": "Choose shape",
-  "customColor": "DIY color value"
+  "customColor": "DIY color value",
+  "hero": {
+    "title": "Create Your AI Avatar",
+    "subtitle": "Upload a selfie and let AI design your perfect custom avatar",
+    "privacy": "Your photo is processed instantly and never stored"
+  },
+  "upload": {
+    "clickToUpload": "Click to upload",
+    "orDragDrop": "or drag and drop",
+    "fileTypes": "PNG, JPG, or WEBP (max 5MB)",
+    "errorType": "Please upload a valid image file (PNG, JPG, or WEBP)",
+    "errorSize": "File size must be less than 5MB",
+    "errorRead": "Failed to read the image file"
+  },
+  "loading": {
+    "analyzing": "Analyzing your photo..."
+  },
+  "error": {
+    "title": "Analysis Failed",
+    "analysisFailed": "Could not analyze the image. Please try another photo."
+  },
+  "tryAnother": "Try Another Photo",
+  "results": {
+    "title": "Your AI-Generated Avatar",
+    "yourPhoto": "Your Photo",
+    "generatedAvatar": "Generated Avatar",
+    "imperfectMatch": "Some features don't match perfectly",
+    "imperfectMatchDescription": "We couldn't find perfect matches for: {{parts}}. You can manually adjust these features to better match your photo.",
+    "customizeManually": "Customize Manually →",
+    "hideControls": "Hide Controls"
+  }
 }
