@@ -301,7 +301,8 @@ const Home: NextPage = () => {
             )}
 
             {/* Action Buttons */}
-            <div className="flex justify-center gap-4 mt-6">
+            {/** */}
+            <div className="flex justify-center  mt-6">
               {showManualControls && (
                 <button
                   type="button"
