@@ -87,7 +87,6 @@ export default async function handler(
             {
               type: 'image',
               image: base64Data,
-              mimeType: `image/${imageType}`,
             },
             {
               type: 'text',

@@ -1,6 +1,8 @@
+import React from 'react';
+
 type WrapperProps = {
   className?: string;
-  children: JSX.Element;
+  children: React.ReactElement;
   tooltip: string;
   switchConfig?: () => void;
 };

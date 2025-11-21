@@ -1,7 +1,7 @@
 /* eslint-disable no-console, @typescript-eslint/no-use-before-define */
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { anthropic } from '@ai-sdk/anthropic';
-import { generateText } from 'ai';
+import { openai } from '@ai-sdk/openai';
+import { generateImage } from 'ai';
 
 export const config = {
   api: {
@@ -50,8 +50,8 @@ export default async function handler(
     }
 
     // Check API key
-    if (!process.env.ANTHROPIC_API_KEY) {
-      console.error('❌ [Generate Asset] ANTHROPIC_API_KEY is not set');
+    if (!process.env.OPENAI_API_KEY) {
+      console.error('❌ [Generate Asset] OPENAI_API_KEY is not set');
       return res.status(500).json({
         success: false,
         error: 'API configuration error',
@@ -63,83 +63,47 @@ export default async function handler(
     );
     const apiStartTime = Date.now();
 
-    // Build the prompt content
-    const content: any[] = [];
+    // Build the detailed prompt for DALL-E
+    const prompt = buildImagePrompt(partType, description, referenceImage);
 
-    if (referenceImage) {
-      // Extract base64 data if it's a data URL
-      const base64Match = referenceImage.match(
-        /^data:image\/(jpeg|jpg|png|webp);base64,(.+)$/,
-      );
-      if (base64Match) {
-        const [, imageType, base64Data] = base64Match;
-        content.push({
-          type: 'image',
-          image: base64Data,
-          mimeType: `image/${imageType}`,
-        });
-      }
-    }
+    console.log('📝 [Generate Asset] Prompt:', prompt);
 
-    content.push({
-      type: 'text',
-      text: `You are an expert SVG illustrator creating Notion-style avatar assets. Generate a ${partType} SVG that matches this description: "${description}"
-
-CRITICAL REQUIREMENTS:
-1. The SVG MUST be 1080x1080px viewBox
-2. Use simple, clean paths with rounded edges (stroke-linecap="round" stroke-linejoin="round")
-3. Style: Minimalist, flat design with black fills and 12px black strokes
-4. The ${partType} should be positioned to align with a Notion avatar face (centered, appropriate size)
-5. Return ONLY the SVG code, no explanations or markdown
-6. Use this structure:
-
-<?xml version="1.0" encoding="UTF-8"?>
-<svg width="1080px" height="1080px" viewBox="0 0 1080 1080" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
-    <title>${partType}/custom</title>
-    <g id="${partType}-custom" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd" stroke-linecap="round" stroke-linejoin="round">
-        <!-- Your paths here -->
-    </g>
-</svg>
-
-DESIGN GUIDELINES FOR ${partType.toUpperCase()}:
-${getDesignGuidelines(partType)}
-
-
-
-Generate the complete, valid SVG now:`,
-    });
-
-    // Call Claude to generate SVG
-    const result = await generateText({
-      model: anthropic('claude-sonnet-4-5-20250929'),
-      messages: [
-        {
-          role: 'user',
-          content,
-        },
-      ],
-      maxTokens: 4000,
+    // Generate image using OpenAI DALL-E
+    const result = await generateImage({
+      model: openai.image('dall-e-3'),
+      prompt,
+      size: '1024x1024',
+      quality: 'standard',
+      style: 'natural',
     });
 
     const apiDuration = Date.now() - apiStartTime;
-    console.log(`✅ [Generate Asset] Claude responded in ${apiDuration}ms`);
+    console.log(`✅ [Generate Asset] OpenAI responded in ${apiDuration}ms`);
 
-    // Extract SVG from response (remove markdown code blocks if present)
-    let svgCode = result.text.trim();
-    svgCode = svgCode.replace(/```svg\n?/g, '').replace(/```\n?/g, '');
+    // Get the generated image URL or base64
+    const imageUrl = result.image;
 
-    // Validate it's actually SVG
-    if (!svgCode.includes('<svg') || !svgCode.includes('</svg>')) {
-      console.error('❌ [Generate Asset] Invalid SVG generated');
+    if (!imageUrl) {
+      console.error('❌ [Generate Asset] No image URL returned');
       return res.status(500).json({
         success: false,
-        error: 'Failed to generate valid SVG',
+        error: 'Failed to generate image',
       });
     }
 
+    console.log('🖼️  [Generate Asset] Image URL:', imageUrl);
+
+    // Fetch the image and convert to base64
+    const imageResponse = await fetch(imageUrl.toString());
+    const imageBuffer = await imageResponse.arrayBuffer();
+    const base64Image = Buffer.from(imageBuffer).toString('base64');
+
+    // Create SVG that embeds the generated image
+    const svgCode = createSVGFromImage(base64Image, partType);
+
     const totalDuration = Date.now() - startTime;
     console.log(
-      `🎉 [Generate Asset] SVG generated successfully in ${totalDuration}ms`,
+      `🎉 [Generate Asset] Image generated and converted to SVG in ${totalDuration}ms`,
     );
 
     return res.status(200).json({
@@ -160,36 +124,93 @@ Generate the complete, valid SVG now:`,
   }
 }
 
-function getDesignGuidelines(partType: string): string {
+function buildImagePrompt(
+  partType: string,
+  description: string,
+  referenceImage?: string,
+): string {
+  const baseStyle = `Create a simple, minimalist Notion-style avatar ${partType} asset.
+Style requirements:
+- Clean, flat design with black fills and strokes
+- Minimalist geometric shapes
+- Simple lines, no complex details
+- Black and white only (no colors)
+- Transparent background
+- Centered composition
+- 1024x1024 resolution`;
+
+  const partSpecificGuidelines = getImagePromptGuidelines(partType);
+
+  let prompt = `${baseStyle}
+
+${partSpecificGuidelines}
+
+${partType.toUpperCase()} DESCRIPTION: ${description}`;
+
+  if (referenceImage) {
+    prompt += `\n\nReference: Match the style and characteristics shown in the reference image as closely as possible while maintaining the minimalist Notion avatar aesthetic.`;
+  }
+
+  return prompt;
+}
+
+function getImagePromptGuidelines(partType: string): string {
   switch (partType) {
     case 'hair':
-      return `- Hair should frame the face, starting around y=300-400
-- Keep shapes simple and geometric
-- Use solid fills for main hair mass
-- Add strokes for texture/detail lines
-- Consider common styles: short, medium, long, curly, straight
-- Match the description's length, texture, and style`;
+      return `HAIR GUIDELINES:
+- Hair should frame the top and sides of where a head would be
+- Use simple, flowing shapes for hair strands
+- Keep the style clean and geometric
+- Position for a face that would be centered in frame
+- Match the length and texture from the description (short, medium, long, curly, straight, etc.)`;
 
     case 'beard':
-      return `- Beard should be positioned on lower face (y=700-900)
-- Keep shapes simple and clean
-- Use solid fills with stroke outlines
-- Match the description's fullness and style
-- Align with typical face proportions`;
+      return `BEARD GUIDELINES:
+- Beard should be positioned for the lower face area
+- Use simple shapes with clean outlines
+- Match the fullness and style from description
+- Keep proportions natural for a typical face`;
 
     case 'accessories':
-      return `- Position based on accessory type (earrings: y=500-600, headband: y=300-400)
+      return `ACCESSORIES GUIDELINES:
+- Create the accessory item (glasses, earrings, hat, etc.)
+- Position appropriately (glasses centered, earrings on sides, hat on top)
 - Keep design minimal and iconic
-- Use thin strokes (8-12px)
-- Ensure accessories don't overwhelm the face`;
+- Use thin, clean lines`;
 
     case 'details':
-      return `- Facial details like freckles, moles, dimples
-- Keep very subtle and small
-- Position naturally on face area (y=400-700)
-- Use simple circles or small paths`;
+      return `DETAILS GUIDELINES:
+- Create subtle facial details (freckles, moles, beauty marks, dimples)
+- Keep very small and minimal
+- Position naturally for a face area
+- Use simple dots or small shapes`;
 
     default:
-      return '- Follow Notion avatar style guidelines';
+      return 'Follow minimalist Notion avatar style guidelines';
   }
+}
+
+function createSVGFromImage(base64Image: string, partType: string): string {
+  // Create an SVG that embeds the generated image
+  // This maintains compatibility with the existing avatar system
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1080px" height="1080px" viewBox="0 0 1080 1080" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>${partType}/custom-ai</title>
+    <defs>
+        <clipPath id="clip-circle">
+            <circle cx="540" cy="540" r="500"/>
+        </clipPath>
+    </defs>
+    <g id="${partType}-custom-ai" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <image
+            x="40"
+            y="40"
+            width="1000"
+            height="1000"
+            xlink:href="data:image/png;base64,${base64Image}"
+            clip-path="url(#clip-circle)"
+            preserveAspectRatio="xMidYMid slice"
+        />
+    </g>
+</svg>`;
 }

@@ -90,11 +90,7 @@ export default function AvatarEditor({
         const partValue = config[type as AvatarPart];
 
         // Skip parts that are null or undefined (optional parts like glasses, beard, etc.)
-        if (
-          partValue === null ||
-          partValue === undefined ||
-          partValue === 'null'
-        ) {
+        if (partValue === null || partValue === undefined) {
           return '';
         }
 
@@ -117,7 +113,9 @@ export default function AvatarEditor({
 
         /* eslint-disable */
         const svgRaw = (
-          await require(`!!raw-loader!@/public/avatar/preview/${type}/${partValue}.svg`)
+          await require(
+            `!!raw-loader!@/public/avatar/preview/${type}/${partValue}.svg`,
+          )
         ).default;
         return `\n<g id="notion-avatar-${type}" ${
           type === 'face' ? 'fill="#ffffff"' : ''
@@ -130,7 +128,9 @@ export default function AvatarEditor({
     // for festival
     if (festival) {
       const svgRaw = (
-        await require(`!!raw-loader!@/public/avatar/preview/festival/${festival}/${config[festival]}.svg`)
+        await require(
+          `!!raw-loader!@/public/avatar/preview/festival/${festival}/${config[festival]}.svg`,
+        )
       ).default;
       groups.push(`\n<g id="notion-avatar-${festival}" ${
         flipped ? 'transform="scale(-1,1) translate(-1080, 0)"' : ''
@@ -155,7 +155,12 @@ export default function AvatarEditor({
   useEffect(() => {
     generatePreview(flip);
     if (onConfigChange) {
-      onConfigChange(config);
+      onConfigChange({
+        ...config,
+        flip: flip ? 1 : 0,
+        color: config.color || background.color,
+        shape: config.shape || background.shape,
+      });
     }
   }, [config, flip, customAssets]);
 
@@ -209,7 +214,7 @@ export default function AvatarEditor({
     const a = document.createElement('a');
 
     a.href = imageURL;
-    a.download = `notion-avatar-${new Date().getTime()}.${imageType}`;
+    a.download = `slop-ai-${new Date().getTime()}.${imageType}`;
     a.click();
   };
 
@@ -294,6 +299,7 @@ export default function AvatarEditor({
                       src={
                         flip ? '/icon/flip-left.svg' : '/icon/flip-right.svg'
                       }
+                      alt="Flip avatar"
                     />
                   </button>
                   <button
@@ -301,7 +307,12 @@ export default function AvatarEditor({
                     className="w-8 h-8 sm:w-12 sm:h-12 tooltip ml-2"
                     onClick={onOpenPaletteModal}
                   >
-                    <Image width={30} height={30} src="/icon/palette.svg" />
+                    <Image
+                      width={30}
+                      height={30}
+                      src="/icon/palette.svg"
+                      alt="Background palette"
+                    />
                   </button>
                 </div>
               </div>
@@ -320,6 +331,7 @@ export default function AvatarEditor({
                         }.svg`}
                         width={30}
                         height={30}
+                        alt={`Avatar ${type}`}
                       />
                     </SelectionWrapper>
                   </div>
@@ -337,6 +349,7 @@ export default function AvatarEditor({
                         src={`/avatar/part/festival/${festival}/${festival}-${config[festival]}.svg`}
                         width={30}
                         height={30}
+                        alt={`${festival} avatar`}
                       />
                       <span className="top-0 right-0 absolute bg-red-600 text-xs text-white rounded translate-x-1/2 px-1 -translate-y-1/2">
                         New

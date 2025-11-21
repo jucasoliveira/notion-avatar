@@ -9,6 +9,7 @@ import { AvatarConfig } from '@/types';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import AvatarEditor from './components/AvatarEditor';
+import PaymentConfirmationModal from './components/Modal/PaymentConfirmation';
 
 const URL = `https://slop-ai-avatar.vercel.app/`;
 
@@ -24,11 +25,22 @@ const Home: NextPage = () => {
   const [customAssets, setCustomAssets] = useState<{ [key: string]: string }>(
     {},
   );
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [pendingImageData, setPendingImageData] = useState<string | null>(null);
 
   const handleImageSelect = async (imageData: string) => {
+    // Show payment confirmation modal first
+    setPendingImageData(imageData);
+    setShowPaymentModal(true);
+  };
+
+  const handlePaymentConfirm = async (shouldPay: boolean) => {
+    if (!pendingImageData) return;
+
+    setShowPaymentModal(false);
     setIsAnalyzing(true);
     setError(null);
-    setUploadedImage(imageData);
+    setUploadedImage(pendingImageData);
 
     try {
       const response = await fetch('/api/analyze-selfie', {
@@ -36,7 +48,7 @@ const Home: NextPage = () => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ image: imageData }),
+        body: JSON.stringify({ image: pendingImageData }),
       });
 
       const data = await response.json();
@@ -54,7 +66,13 @@ const Home: NextPage = () => {
       setUploadedImage(null);
     } finally {
       setIsAnalyzing(false);
+      setPendingImageData(null);
     }
+  };
+
+  const handlePaymentCancel = () => {
+    setShowPaymentModal(false);
+    setPendingImageData(null);
   };
 
   const handleReset = () => {
@@ -68,6 +86,13 @@ const Home: NextPage = () => {
 
   return (
     <>
+      {showPaymentModal && (
+        <PaymentConfirmationModal
+          onConfirm={handlePaymentConfirm}
+          onCancel={handlePaymentCancel}
+          isProcessing={isAnalyzing}
+        />
+      )}
       <Head>
         <link
           rel="apple-touch-icon"
