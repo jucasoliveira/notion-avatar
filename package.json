@@ -1,6 +1,6 @@
 {
-  "name": "notion-avatar",
-  "description": "An online tool for making notion-style avatars.",
+  "name": "ai-slop",
+  "description": "An online tool for making slop-style avatars.",
   "version": "1.0.0",
   "private": true,
   "author": "mayandev<phillzou@gmail.com> (@phillzou)",
@@ -9,7 +9,7 @@
     "nextjs",
     "starter",
     "typescript",
-    "notion"
+    "slop"
   ],
   "scripts": {
     "dev": "next dev --webpack",
